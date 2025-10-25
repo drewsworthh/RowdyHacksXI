@@ -1,5 +1,65 @@
 import cv2
 import mediapipe as mp
+# functions
+def is_fist(hand_landmarks):
+    """Returns True if all fingers are curled (fist)."""
+    tips = [
+        mp_hands.HandLandmark.THUMB_TIP,
+        mp_hands.HandLandmark.INDEX_FINGER_TIP,
+        mp_hands.HandLandmark.MIDDLE_FINGER_TIP,
+        mp_hands.HandLandmark.RING_FINGER_TIP,
+        mp_hands.HandLandmark.PINKY_TIP,
+    ]
+    pips = [
+        mp_hands.HandLandmark.THUMB_IP,
+        mp_hands.HandLandmark.INDEX_FINGER_PIP,
+        mp_hands.HandLandmark.MIDDLE_FINGER_PIP,
+        mp_hands.HandLandmark.RING_FINGER_PIP,
+        mp_hands.HandLandmark.PINKY_PIP,
+    ]
+    
+    curled = 0
+    for tip, pip in zip(tips, pips):
+        if hand_landmarks.landmark[tip].y > hand_landmarks.landmark[pip].y:
+            curled += 1
+
+    return curled >= 4  # at least 4 fingers curled
+
+def is_pointing(hand_landmarks):
+    # get all tips and pips
+    index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+    index_pip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_PIP]
+    
+    middle_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+    middle_pip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_PIP]
+    
+    ring_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+    ring_pip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_PIP]
+    
+    pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
+    pinky_pip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_PIP]
+    # check extension of index and curling of rest
+    index_extended = index_tip.y < index_pip.y
+
+    middle_curled = middle_tip.y > middle_pip.y - 0.05
+    ring_curled = ring_tip.y > ring_pip.y - 0.05
+    pinky_curled = pinky_tip.y > pinky_pip.y - 0.05
+
+    if index_extended and middle_curled and ring_curled and pinky_curled:
+        return True
+    
+    return False
+def hands_on_hips(pose_landmarks, wrist_landmark, side="left", threshold=0.1):
+    """Returns True if wrist is near the hip joint."""
+    if side == "left":
+        hip = pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_HIP]
+    else:
+        hip = pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_HIP]
+
+    dx = wrist_landmark.x - hip.x
+    dy = wrist_landmark.y - hip.y
+    distance = (dx**2 + dy**2) ** 0.5
+    return distance < threshold
 
 # --- Initialize MediaPipe modules ---
 mp_drawing = mp.solutions.drawing_utils
@@ -98,6 +158,25 @@ while cap.isOpened():
                 mp_drawing_styles.get_default_hand_landmarks_style(),
                 mp_drawing_styles.get_default_hand_connections_style()
             )
+            # --- Check if hand is pointing ---
+            if is_pointing(hand_landmarks):
+                cv2.putText(image, "POINTING!", (50, 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                print("👉 Pointing detected!")
+            if pose_results.pose_landmarks and hand_results.multi_hand_landmarks:
+                for hand_landmarks in hand_results.multi_hand_landmarks:
+                    if is_fist(hand_landmarks):
+                        # get wrist position from the hand
+                        wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
+
+                        # choose which side (you can determine this via handedness if needed)
+                        left_hip_near = hands_on_hips(pose_results.pose_landmarks, wrist, "left")
+                        right_hip_near = hands_on_hips(pose_results.pose_landmarks, wrist, "right")
+
+                        if left_hip_near or right_hip_near:
+                            cv2.putText(image, "Fist near hip!", (30, 80),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+
 
     # --- Show the combined result ---
     cv2.imshow('MediaPipe Pose (Wrists + Ankles Only for Hands/Feet)', cv2.flip(image, 1))
