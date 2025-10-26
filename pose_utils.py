@@ -71,7 +71,7 @@ def arm_angle(shoulder, elbow, wrist):
     return math.degrees(math.acos(dot / (mag_a * mag_b)))
 
 
-def spongebob_pose(pose_landmarks, wrist_landmark, side="left", threshold=0.15):
+def spongebob_pose(pose_landmarks, wrist_landmark, side="left", threshold=0.11):
     if not pose_landmarks:
         return False
 

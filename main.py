@@ -145,7 +145,6 @@ while cap.isOpened():
                 if index_tip.y < lip_line_y - 0.05:
                     cv2.putText(image, "👉 Pointing above lip line!", (30, 100),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
-
             if not is_fist(hand_landmarks) and pose_results.pose_landmarks:
                 wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
                 if spongebob_pose(pose_results.pose_landmarks, wrist, "left", 0.12) or \
@@ -157,16 +156,33 @@ while cap.isOpened():
                             spongebob_img = cv2.resize(spongebob_img, (750, 600))
                             cv2.imshow("SpongeBob Pose!", spongebob_img)
                             spongebob_active = True
+            else:
+                # Close SpongeBob window if pose ends
+                if spongebob_active:
+                    cv2.destroyWindow("SpongeBob Pose!")
+                    spongebob_active = False
+
+
             # --- NEW: Check for Tips Fedora Pose ---
             # We assume a closed/mostly closed hand (fist-like) for the tip.
             fedora_detected = False
-            if is_fist(hand_landmarks):
-                # Check against both sides:
+            if is_fist(hand_landmarks) and pose_results.pose_landmarks:
+                wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
                 if tips_fedora_pose(pose_results.pose_landmarks, wrist, "left", 0.1, 110) or \
                 tips_fedora_pose(pose_results.pose_landmarks, wrist, "right", 0.1, 110):
-                    cv2.putText(image, "🎩 Tips Fedora!", (30, 200),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
                     fedora_detected = True
+                    if not fedora_active:  # only open once
+                        fedora_img = cv2.imread("Milady.jpg")
+                        if fedora_img is not None:
+                            fedora_img = cv2.resize(fedora_img, (750, 600))
+                            cv2.imshow("Fedora Pose!", fedora_img)
+                            fedora_active = True
+            else:
+                # Close Fedora window if pose ends
+                if fedora_active:
+                    cv2.destroyWindow("Fedora Pose!")
+                    fedora_active = False
+
         # --- Manage SpongeBob window state ---
         if not show_spongebob and spongebob_active:
             cv2.destroyWindow("SpongeBob Pose!")
