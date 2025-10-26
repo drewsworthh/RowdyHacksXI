@@ -33,6 +33,7 @@ print("Press ESC to quit.")
 
 spongebob_active = False  # <-- add this before your while loop
 chin_active = False  # <-- NEW STATE FLAG
+shush_active = False
 while cap.isOpened():
     success, image = cap.read()
     if not success:
@@ -52,7 +53,7 @@ while cap.isOpened():
     image = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
     
     # --- NEW UTILITY FUNCTION FOR FEDORA TIP POSE ---
-    def tips_fedora_pose(pose_landmarks, wrist_landmark, side="left", threshold_y=0.1, angle_min=120):
+    def tips_fedora_pose(pose_landmarks, wrist_landmark, side="left", threshold_y=0.65, angle_min=120):
         """
         Checks for a hat-tipping-like pose:
         1. Wrist is vertically close to the eye/ear area.
@@ -129,6 +130,7 @@ while cap.isOpened():
     # (your pose and hand detection code...)
 
     show_spongebob = False  # reset for each frame
+    show_shush = False
     # --- Draw hand landmarks normally ---
     if hand_results.multi_hand_landmarks:
         for hand_landmarks in hand_results.multi_hand_landmarks:
@@ -141,12 +143,41 @@ while cap.isOpened():
             )
             # Get the wrist landmark from the hand detector results
             wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
-            # Check for pointing above lip line
-            if is_pointing(hand_landmarks) and pose_results.pose_landmarks:
-                index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-                if index_tip.y < lip_line_y - 0.05:
-                    cv2.putText(image, "👉 Pointing above lip line!", (30, 100),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+            finger_between_lips = False
+            if pose_results.pose_landmarks and hand_results.multi_hand_landmarks:
+                for hand_landmarks in hand_results.multi_hand_landmarks:
+                    lips_top = pose_results.pose_landmarks.landmark[mp_pose.PoseLandmark.MOUTH_LEFT]
+                    lips_bottom = pose_results.pose_landmarks.landmark[mp_pose.PoseLandmark.MOUTH_RIGHT]
+                    lips_y = (lips_top.y + lips_bottom.y) / 2
+
+                    pip_indices = [
+                        mp_hands.HandLandmark.INDEX_FINGER_PIP,
+                        mp_hands.HandLandmark.MIDDLE_FINGER_PIP,
+                        mp_hands.HandLandmark.RING_FINGER_PIP,
+                        mp_hands.HandLandmark.PINKY_PIP,
+                    ]
+
+                    for pip_idx in pip_indices:
+                        pip = hand_landmarks.landmark[pip_idx]
+                        if abs(pip.y - lips_y) < 0.05:
+                            finger_between_lips = True
+                            break
+                    if finger_between_lips:
+                        break
+            # Open or close the Shush window based on detection
+            if finger_between_lips:
+                show_shush = True
+                if not shush_active:
+                    shush_img = cv2.imread("shush.jpg")
+                    if shush_img is not None:
+                        shush_img = cv2.resize(shush_img, (640, 480))
+                        cv2.imshow("Shush Pose", shush_img)
+                        shush_active = True
+                    else:
+                        if shush_active:
+                            cv2.destroyWindow("Shush Pose")
+                            shush_active = False
+
             if not is_fist(hand_landmarks) and pose_results.pose_landmarks:
                 wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
                 if spongebob_pose(pose_results.pose_landmarks, wrist, "left", 0.12) or \
@@ -207,6 +238,10 @@ while cap.isOpened():
                 fedora_active = False
             else:
                 fedora_active = True
+        if not show_shush and shush_active:
+            cv2.destroyWindow("Shush Pose")
+            shush_active = False
+
                 
 
 
