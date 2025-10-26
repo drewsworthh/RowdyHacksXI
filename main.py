@@ -158,6 +158,11 @@ while cap.isOpened():
                             spongebob_img = cv2.resize(spongebob_img, (750, 600))
                             cv2.imshow("SpongeBob Pose!", spongebob_img)
                             spongebob_active = True
+                        else:
+                            # Close SpongeBob window if pose ends
+                            if spongebob_active:
+                                cv2.destroyWindow("SpongeBob Pose!")
+                                spongebob_active = False
                         # --- Chin-touch pose detection ---
             if chin_touch_pose(pose_results.pose_landmarks, hand_landmarks):
                 if not chin_active:
@@ -170,11 +175,6 @@ while cap.isOpened():
                 if chin_active:
                     cv2.destroyWindow("Chin Touch Pose!")
                     chin_active = False
-            else:
-                # Close SpongeBob window if pose ends
-                if spongebob_active:
-                    cv2.destroyWindow("SpongeBob Pose!")
-                    spongebob_active = False
 
 
             # --- NEW: Check for Tips Fedora Pose ---
