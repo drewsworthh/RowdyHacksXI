@@ -29,6 +29,7 @@ RIGHT_ANKLE = mp_pose.PoseLandmark.RIGHT_ANKLE.value
 
 print("Press ESC to quit.")
 
+spongebob_active = False  # <-- add this before your while loop
 while cap.isOpened():
     success, image = cap.read()
     if not success:
@@ -88,6 +89,9 @@ while cap.isOpened():
             cx, cy = int(lm.x * w), int(lm.y * h)
             cv2.circle(image, (cx, cy), 6, (0, 255, 255), -1)
 
+    # (your pose and hand detection code...)
+
+    show_spongebob = False  # reset for each frame
     # --- Draw hand landmarks normally ---
     if hand_results.multi_hand_landmarks:
         for hand_landmarks in hand_results.multi_hand_landmarks:
@@ -106,37 +110,26 @@ while cap.isOpened():
                     cv2.putText(image, "👉 Pointing above lip line!", (30, 100),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
 
-            if is_fist(hand_landmarks) and pose_results.pose_landmarks:
+            if not is_fist(hand_landmarks) and pose_results.pose_landmarks:
                 wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
                 if spongebob_pose(pose_results.pose_landmarks, wrist, "left", 0.12) or \
-                spongebob_pose(pose_results.pose_landmarks, wrist, "right", 0.12):
-                    # Load SpongeBob image
-                    spongebob_img = cv2.imread("spongebob.jpg")
+                   spongebob_pose(pose_results.pose_landmarks, wrist, "right", 0.12):
+                    show_spongebob = True
+                    if not spongebob_active:  # only open window once
+                        spongebob_img = cv2.imread("spongebob.jpg")
+                        if spongebob_img is not None:
+                            spongebob_img = cv2.resize(spongebob_img, (750, 600))
+                            cv2.imshow("SpongeBob Pose!", spongebob_img)
+                            spongebob_active = True
 
-                    if spongebob_img is not None:
-                        # Resize overlay smaller (adjust size if needed)
-                        overlay_h, overlay_w = 150, 150
-                        spongebob_img = cv2.resize(spongebob_img, (overlay_w, overlay_h))
+    # --- Manage SpongeBob window state ---
+    if not show_spongebob and spongebob_active:
+        cv2.destroyWindow("SpongeBob Pose!")
+        spongebob_active = False
 
-                        # Choose top-left corner for overlay
-                        x_offset, y_offset = 30, 50
-
-                        # Overlay SpongeBob image on top of camera feed
-                        y1, y2 = y_offset, y_offset + spongebob_img.shape[0]
-                        x1, x2 = x_offset, x_offset + spongebob_img.shape[1]
-
-                        # Ensure overlay fits inside frame
-                        if y2 <= image.shape[0] and x2 <= image.shape[1]:
-                            alpha_s = 0.8  # transparency (0–1)
-                            image[y1:y2, x1:x2] = cv2.addWeighted(
-                                image[y1:y2, x1:x2], 1 - alpha_s, spongebob_img, alpha_s, 0
-                            )
-
-
-    # --- Show the combined result ---
+    # --- Show main camera ---
     cv2.imshow('MediaPipe Pose (Wrists + Ankles Only for Hands/Feet)', cv2.flip(image, 1))
 
-    # --- Exit on ESC ---
     if cv2.waitKey(5) & 0xFF == 27:
         break
 
