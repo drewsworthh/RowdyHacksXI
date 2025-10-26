@@ -5,6 +5,7 @@ from pose_utils import (
     mp_pose, mp_hands, mp_drawing, mp_drawing_styles,
     is_fist, is_pointing, arm_angle, spongebob_pose
 )
+from chin_touch import chin_touch_pose
 # --- Create Pose and Hands detectors ---
 pose = mp_pose.Pose(
     min_detection_confidence=0.5,
@@ -31,6 +32,7 @@ RIGHT_ANKLE = mp_pose.PoseLandmark.RIGHT_ANKLE.value
 print("Press ESC to quit.")
 
 spongebob_active = False  # <-- add this before your while loop
+chin_active = False  # <-- NEW STATE FLAG
 while cap.isOpened():
     success, image = cap.read()
     if not success:
@@ -157,6 +159,18 @@ while cap.isOpened():
                             spongebob_img = cv2.resize(spongebob_img, (750, 600))
                             cv2.imshow("SpongeBob Pose!", spongebob_img)
                             spongebob_active = True
+                        # --- Chin-touch pose detection ---
+            if chin_touch_pose(pose_results.pose_landmarks, hand_landmarks):
+                if not chin_active:
+                    chin_img = cv2.imread("chin_touch.jpg")  # your image
+                    if chin_img is not None:
+                        chin_img = cv2.resize(chin_img, (400, 400))
+                        cv2.imshow("Chin Touch Pose!", chin_img)
+                        chin_active = True
+            else:
+                if chin_active:
+                    cv2.destroyWindow("Chin Touch Pose!")
+                    chin_active = False
             # --- NEW: Check for Tips Fedora Pose ---
             # We assume a closed/mostly closed hand (fist-like) for the tip.
             fedora_detected = False
